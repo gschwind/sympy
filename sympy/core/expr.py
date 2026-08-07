@@ -532,6 +532,61 @@ class Expr(Basic, EvalfMixin):
         else:
             return n._prec != 1
 
+    def _random_value_with_assumptions(self, xseed):
+        """Return a candidate test value for self satisfying its assumptions."""
+        from sympy.core.assumptions import all_assumptions
+        from sympy import pi, E, sqrt, oo, I, exp_polar, exp
+        from random import choice, random, seed
+
+        # Set the seed to make code reproductible
+        seed(xseed)
+
+        root0 = 10*random()+0.1
+        root1 = 10*random()+0.1
+        root2 = Integer(100*random())+1
+        root3 = choice([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97])
+        # list of values that covert all assumptions, contains at less 2
+        # values per assumptions
+        valid_values = [
+            S.Zero,
+            root0*I, -root0*I,
+            exp(Integer(1)/root2),
+            sqrt(2*root2), -sqrt(2*root2),
+            S(root3), S(-root3), S(2*root3), S(-2*root3),
+            -root2, root2,
+            -2*root2, 2*root2,
+            -2*root2-1, 2*root2+1,
+            S(-root0), S(root0),
+            exp_polar(root1*I),
+            -root0+root1*I, -root0-root1*I, root0+root1*I, root0-root1*I
+        ]
+
+        # Filter values using our assumptions, ignore commuative because I do
+        # not know how to handle it.
+        for a in all_assumptions-{'commutative'}:
+            assumption = f"is_{a}"
+            if (self_assumption := getattr(self, assumption)) is None:
+                continue
+            valid_values = [v for v in valid_values
+                if getattr(v, assumption) is self_assumption]
+
+        if len(valid_values) == 0:
+            raise ValueError(f"No random value found with requested assumption")
+
+        # Note some assumption has only one value available, such as is_zero,
+        # is_infitite&is_negative
+        return choice(valid_values)
+
+    def _random_subs_with_assumptions(self, xseed):
+        """Return self with free_symbols replaced by a random value respecting
+        assumptions"""
+
+        free = self.free_symbols
+        try:
+            return self.subs({s: s._random_value_with_assumptions(xseed) for s in free}, simultaneous=True)
+        except ZeroDivisionError:
+            return S.NaN
+
     def _random(self, n=None, re_min=-1, im_min=-1, re_max=1, im_max=1):
         """Return self evaluated, if possible, replacing free symbols with
         random complex values, if necessary.
@@ -716,21 +771,21 @@ class Expr(Basic, EvalfMixin):
 
         # try numerical evaluation to see if we get two different values
         failing_number = None
-        if wrt_number == free:
+        if wrt_number == free and all([sym.is_finite is not False for sym in wrt_number]):
             # Random using complexes, ignore ZeroDivisionError because
             # most user do not care of assumptions.
             try:
-                a = expr._random()
+                a = expr._random_subs_with_assumptions(102938475)
             except ZeroDivisionError:
                 a = S.NaN
 
             try:
-                b = expr._random()
+                b = expr._random_subs_with_assumptions(948573645)
             except ZeroDivisionError:
                 b = S.NaN
 
             try:
-                c = expr._random()
+                c = expr._random_subs_with_assumptions(384756394)
             except ZeroDivisionError:
                 c = S.NaN
 
