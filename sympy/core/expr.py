@@ -669,6 +669,9 @@ class Expr(Basic, EvalfMixin):
         """Return True if self is constant, False if not, or None if
         the constancy could not be determined conclusively.
 
+        Note that the result may change between None and False because
+        numerical evaluation strategy is random.
+
         Explanation
         ===========
 
