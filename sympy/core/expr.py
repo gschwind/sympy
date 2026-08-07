@@ -716,37 +716,83 @@ class Expr(Basic, EvalfMixin):
 
         # try numerical evaluation to see if we get two different values
         failing_number = None
-        if wrt_number == free:
-            # try 0 (for a) and 1 (for b)
-            try:
-                a = expr.subs(list(zip(free, [0]*len(free))),
-                    simultaneous=True)
-                if a is S.NaN:
-                    # evaluation may succeed when substitution fails
-                    a = expr._random(None, 0, 0, 0, 0)
-            except ZeroDivisionError:
-                a = None
-            if a is not None and a is not S.NaN:
+        if wrt_number == free and all(sym.is_finite is not False for sym in free):
+            # Random using complexes, ignore ZeroDivisionError because
+            # most user do not care of assumptions.
+
+            # Try S.Zero
+            a = S.NaN
+            if all(sym.is_zero is not False for sym in free):
                 try:
-                    b = expr.subs(list(zip(free, [1]*len(free))),
-                        simultaneous=True)
-                    if b is S.NaN:
-                        # evaluation may succeed when substitution fails
-                        b = expr._random(None, 1, 0, 1, 0)
+                    subs = {f: S.Zero for f in free}
+                    a = expr.subs(subs, simultaneous=True)
+                    # If substitution fail try evalf
+                    if a is S.NaN:
+                        a = expr.evalf(15, subs=subs)
                 except ZeroDivisionError:
-                    b = None
-                if b is not None and b is not S.NaN and b.equals(a) is False:
-                    return False
-                # try random real
-                b = expr._random(None, -1, 0, 1, 0)
-                if b is not None and b is not S.NaN and b.equals(a) is False:
-                    return False
-                # try random complex
-                b = expr._random()
-                if b is not None and b is not S.NaN:
+                    a = S.NaN
+            if a is None: a = S.NaN
+
+            # Try S.One
+            b = S.NaN
+            if all(sym.is_positive is not False for sym in free):
+                try:
+                    subs = {f: S.One for f in free}
+                    b = expr.subs(subs, simultaneous=True)
+                    # If substitution fail try evalf
+                    if b is S.NaN:
+                        b = expr.evalf(15, subs=subs)
+                except ZeroDivisionError:
+                    b = S.NaN
+
+            if b is None: b = S.NaN
+            if (b is not S.NaN):
+                if (a is not S.NaN):
                     if b.equals(a) is False:
                         return False
-                    failing_number = a if a.is_number else b
+                    failing_number = b if b.is_number else a
+
+            # Try real
+            c = S.NaN
+            if all(sym.is_real is not False for sym in free):
+                try:
+                    c = expr._random(None, -1.0, 0.0, 1.0, 0.0)
+                except ZeroDivisionError:
+                    c = S.NaN
+
+            if c is None: c = S.NaN
+            if (c is not S.NaN):
+                if (a is not S.NaN):
+                    if c.equals(a) is False:
+                        return False
+                    failing_number = c if a.is_number else a
+                if (b is not S.NaN):
+                    if c.equals(b) is False:
+                        return False
+                    failing_number = c if c.is_number else b
+
+            # Try complex
+            d = S.NaN
+            if all(sym.is_complex is not False for sym in free):
+                try:
+                    d = expr._random(None, -1.0, -1.0, 1.0, 1.0)
+                except ZeroDivisionError:
+                    d = S.NaN
+
+            if d is None: d = S.NaN
+            if (d is not S.NaN):
+                if (a is not S.NaN):
+                    if d.equals(a) is False:
+                        return False
+                    failing_number = d if d.is_number else a
+                if (b is not S.NaN):
+                    if d.equals(b) is False:
+                        return False
+                    failing_number = d if d.is_number else b
+                if (c is not S.NaN):
+                    if d.equals(c) is False:
+                        return False
+                    failing_number = d if d.is_number else c
 
         # now we will test each wrt symbol (or all free symbols) to see if the
         # expression depends on them or not using differentiation. This is
