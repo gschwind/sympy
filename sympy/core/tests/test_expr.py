@@ -3,6 +3,7 @@ from __future__ import annotations
 from sympy.assumptions.refine import refine
 from sympy.concrete.summations import Sum
 from sympy.core.add import Add
+from sympy.core.assumptions import all_assumptions, check_assumptions
 from sympy.core.basic import Basic
 from sympy.core.containers import Tuple
 from sympy.core.expr import (ExprBuilder, unchanged, Expr,
@@ -1889,6 +1890,21 @@ def test_issue_5843():
     assert (2*a).extract_multiplicatively(a) == 2
     assert (4*a).extract_multiplicatively(2*a) == 2
     assert ((3*a)*(2*a)).extract_multiplicatively(a) == 6*a
+
+
+def test_random_value_with_assumptions():
+    for asm in all_assumptions-{'commutative','infinite'}:
+        p1 = Symbol(f"{asm}_true", **{asm: True})
+        p1v1 = p1._random_value_with_assumptions(2938475)
+        p1v2 = p1._random_value_with_assumptions(9584736)
+        assert check_assumptions(p1v1, p1)
+        assert check_assumptions(p1v2, p1)
+    for asm in all_assumptions-{'commutative','finite','complex'}:
+        p2 = Symbol(f"{asm}_false", **{asm: False})
+        p2v1 = p2._random_value_with_assumptions(6354593)
+        p2v2 = p2._random_value_with_assumptions(1837459)
+        assert check_assumptions(p2v1, p2)
+        assert check_assumptions(p2v2, p2)
 
 
 def test_is_constant():
