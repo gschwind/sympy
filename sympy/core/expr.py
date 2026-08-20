@@ -726,6 +726,8 @@ class Expr(Basic, EvalfMixin):
                     a = expr._random(None, 0, 0, 0, 0)
             except ZeroDivisionError:
                 a = None
+            except ValueError:
+                a = None
             if a is not None and a is not S.NaN:
                 try:
                     b = expr.subs(list(zip(free, [1]*len(free))),
@@ -735,6 +737,8 @@ class Expr(Basic, EvalfMixin):
                         b = expr._random(None, 1, 0, 1, 0)
                 except ZeroDivisionError:
                     b = None
+                except ValueError:
+                    a = None
                 if b is not None and b is not S.NaN and b.equals(a) is False:
                     return False
                 # try random real
